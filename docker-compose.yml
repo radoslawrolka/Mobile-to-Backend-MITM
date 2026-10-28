@@ -1,0 +1,64 @@
+# =========================================================
+# WZIRNI Projekt - Mobile-to-Backend MITM Lab
+# Środowisko: mitmproxy + Node.js Backend (Android emulator działa natywnie na hoście)
+# =========================================================
+
+services:
+
+  # -------------------------------------------------------
+  # 1. Backend Node.js - serwer HTTPS z SSL pinningiem
+  # -------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+    container_name: wzirni-backend
+    networks:
+      lab-net:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "3000:3000"    # HTTP (przekierowanie do HTTPS)
+      - "3443:3443"    # HTTPS
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('https').get({hostname:'localhost',port:3443,path:'/api/health',rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # -------------------------------------------------------
+  # 2. mitmproxy - przechwytywanie i modyfikacja ruchu
+  # -------------------------------------------------------
+  mitm:
+    build:
+      context: ./mitm
+    container_name: wzirni-mitm
+    networks:
+      lab-net:
+        ipv4_address: 172.20.0.20
+    ports:
+      - "8080:8080"    # proxy (HTTP/HTTPS)
+      - "8081:8081"    # mitmweb UI (http://localhost:8081)
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./mitm/scripts:/scripts:ro
+      - mitm-certs:/root/.mitmproxy
+    environment:
+      - MITM_SCRIPT   # wartość przekazywana ze środowiska hosta
+    restart: unless-stopped
+
+
+networks:
+  lab-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+volumes:
+  mitm-certs:

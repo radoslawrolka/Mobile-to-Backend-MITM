@@ -1,0 +1,13 @@
+{
+  "name": "wzirni-backend",
+  "version": "1.0.0",
+  "description": "Backend HTTPS server - WZIRNI MITM Lab",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "morgan": "^1.10.0"
+  }
+}
